@@ -1,15 +1,15 @@
 """
 SYNTH STUDIO - Hardware Reference & Learning Tool
-Hardware-accurate layouts • Science-backed learning • Laptop-optimized workflow
+Optimized for performance • Hardware-accurate • Science-backed learning
 """
 
 import streamlit as st
 import json
 import numpy as np
 import plotly.graph_objects as go
-import math
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
+from functools import lru_cache
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -23,75 +23,103 @@ st.set_page_config(
 )
 
 # ============================================================================
-# PROFESSIONAL CSS - HARDWARE-INSPIRED DESIGN
+# PROFESSIONAL CSS - OPTIMIZED & CLEAN
 # ============================================================================
 
 st.markdown("""
 <style>
-    /* Clean professional background */
+    /* Base styling */
     .stApp {
-        background: linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 50%, #0d0d0d 100%);
-        font-family: 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
     }
 
-    /* Hardware panel container - resembles actual device */
-    .hardware-panel {
-        background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
-        border: 2px solid #3a3a3a;
-        border-radius: 8px;
+    /* Hardware panel - clean and professional */
+    .hw-panel {
+        background: linear-gradient(180deg, #252525 0%, #1a1a1a 100%);
+        border: 1px solid #3a3a3a;
+        border-radius: 6px;
         padding: 20px;
         margin: 15px 0;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
 
-    /* Section dividers like physical panels */
-    .panel-section {
-        border: 1px solid #333;
-        background: rgba(0,0,0,0.2);
-        border-radius: 4px;
-        padding: 12px;
-        margin: 8px 0;
-    }
-
-    /* Section headers - clean typography */
-    .section-header {
-        color: #fff;
-        font-size: 10px;
+    /* Section headers */
+    .section-title {
+        color: #0f0;
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 2px;
-        margin: 0 0 12px 0;
-        padding: 8px 0 8px 0;
-        border-bottom: 2px solid #0f0;
-        text-align: left;
+        margin: 0 0 15px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #0f0;
     }
 
-    /* Control labels - hardware style */
-    .control-label {
-        font-size: 8px;
-        color: #999;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin: 4px 0;
+    /* CSS Knob - MUCH faster than Plotly */
+    .css-knob {
+        width: 80px;
+        height: 80px;
+        margin: 10px auto;
+        position: relative;
+    }
+
+    .knob-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
+        border: 2px solid #4a4a4a;
+        position: relative;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .knob-indicator {
+        position: absolute;
+        width: 3px;
+        height: 30px;
+        background: #fff;
+        top: 10px;
+        left: 50%;
+        transform-origin: bottom center;
+        border-radius: 2px;
+    }
+
+    .knob-label {
         text-align: center;
+        font-size: 9px;
+        color: #888;
+        text-transform: uppercase;
+        margin-top: 5px;
+        letter-spacing: 0.5px;
     }
 
-    /* LED-style value display */
+    .knob-value {
+        text-align: center;
+        font-size: 12px;
+        color: #0f0;
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    /* LED Display */
     .led-display {
         background: #000;
         color: #0f0;
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 700;
-        padding: 6px 10px;
-        border: 2px solid #1a1a1a;
+        padding: 8px 12px;
+        border: 1px solid #1a1a1a;
         border-radius: 3px;
         text-align: center;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,255,0,0.3);
-        min-width: 60px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(0,255,0,0.2);
+        display: inline-block;
+        min-width: 80px;
     }
 
-    /* Hardware buttons */
+    /* Buttons */
     .stButton > button {
         background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
         color: #e0e0e0;
@@ -101,566 +129,390 @@ st.markdown("""
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1px;
-        padding: 8px 16px;
+        padding: 10px 20px;
         transition: all 0.2s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 
     .stButton > button:hover {
         background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
         border-color: #0f0;
-        box-shadow: 0 0 12px rgba(0,255,0,0.4);
+        box-shadow: 0 0 10px rgba(0,255,0,0.3);
     }
 
-    .stButton > button:active {
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-        transform: translateY(1px);
+    /* Learning callouts */
+    .tip-box {
+        background: linear-gradient(135deg, #1a2a1a 0%, #0d1a0d 100%);
+        border-left: 3px solid #0f0;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 1.6;
     }
 
-    /* Sliders - hardware pots */
-    .stSlider {
-        padding: 4px 0;
+    .hardware-tip {
+        background: linear-gradient(135deg, #2a1a1a 0%, #1a0d0d 100%);
+        border-left: 3px solid #f90;
+        padding: 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 1.6;
     }
 
-    /* Sidebar - control center */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0a0a0a 0%, #151515 100%);
-        border-right: 2px solid #2a2a2a;
+        background: #0a0a0a;
+        border-right: 1px solid #2a2a2a;
     }
 
-    section[data-testid="stSidebar"] h1,
-    section[data-testid="stSidebar"] h2,
     section[data-testid="stSidebar"] h3 {
         color: #0f0;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
-        letter-spacing: 2px;
-        border-bottom: 1px solid #2a2a2a;
-        padding-bottom: 6px;
+        letter-spacing: 1.5px;
     }
 
-    /* Learning callout boxes */
-    .learning-tip {
-        background: linear-gradient(135deg, #1a2a1a 0%, #0d1a0d 100%);
-        border-left: 4px solid #0f0;
-        padding: 12px 16px;
-        margin: 12px 0;
-        border-radius: 4px;
+    /* Sliders - compact */
+    .stSlider > div > div > div {
         font-size: 11px;
-        line-height: 1.6;
     }
 
-    .try-hardware {
-        background: linear-gradient(135deg, #2a1a1a 0%, #1a0d0d 100%);
-        border-left: 4px solid #f90;
-        padding: 12px 16px;
-        margin: 12px 0;
-        border-radius: 4px;
-        font-size: 11px;
-        line-height: 1.6;
-    }
-
-    /* Patch cable visualization */
-    .patch-point {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        border: 2px solid #666;
-        background: #111;
-        margin: 2px;
-    }
-
-    .patch-point-output {
-        border-color: #0f0;
-        box-shadow: 0 0 8px rgba(0,255,0,0.4);
-    }
-
-    .patch-point-input {
-        border-color: #f90;
-        box-shadow: 0 0 8px rgba(255,153,0,0.4);
-    }
-
-    /* Compact metrics */
-    [data-testid="stMetricValue"] {
-        font-size: 24px;
-        color: #0f0;
-    }
-
-    /* Hide default Streamlit elements */
+    /* Hide Streamlit elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
-    /* Responsive optimizations */
+    /* Responsive */
     @media (max-width: 1200px) {
-        .hardware-panel {
+        .hw-panel {
             padding: 12px;
-        }
-        .section-header {
-            font-size: 9px;
         }
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# HARDWARE SPECIFICATIONS - VERIFIED FROM OFFICIAL MANUALS
+# DEVICE SPECIFICATIONS
 # ============================================================================
 
 DEVICES = {
     "DFAM": {
         "name": "DFAM - Drummer From Another Mother",
         "manufacturer": "Moog Music",
-        "manual": "Manual D_Web",
-        "panel_layout": {
-            "top_row": ["VCO1 FREQ", "VCO1 WAVE", "VCO1 EG", "VCO2 FREQ", "VCO2 WAVE", "VCO2 EG"],
-            "second_row": ["VCO DECAY", "FM AMOUNT", "HARD SYNC", "VCO1 LEVEL", "VCO2 LEVEL", "NOISE"],
-            "third_row": ["CUTOFF", "RESONANCE", "VCF EG", "VCF DECAY", "MODE"],
-            "fourth_row": ["VCA DECAY", "VCA ATTACK", "VOLUME"],
-            "bottom": "8-STEP SEQUENCER"
-        },
+        "type": "Semi-Modular Percussion Synth",
         "specs": {
-            "vco_range": "±5 octaves",
-            "filter": "4-pole 20Hz-20kHz",
+            "oscillators": "2 analog VCOs (Triangle/Square)",
+            "filter": "4-pole Ladder (LP/HP) 20Hz-20kHz",
             "envelopes": "3 (VCO, VCF, VCA)",
-            "sequencer": "8 steps",
+            "sequencer": "8-step analog",
             "patchbay": "24 points (15 in, 9 out)"
-        }
+        },
+        "controls": ["VCO1", "VCO2", "Mixer", "Filter", "VCA", "Sequencer"]
     },
     "Mother-32": {
         "name": "Mother-32 Semi-Modular Synthesizer",
         "manufacturer": "Moog Music",
-        "manual": "Manual v1.1",
-        "panel_layout": {
-            "top_row": ["GLIDE", "VCO FREQ", "VCO WAVE", "LFO RATE", "LFO WAVE"],
-            "second_row": ["VCF CUTOFF", "VCF RES", "VCF EG AMT", "VCA LEVEL"],
-            "third_row": ["EG ATTACK", "EG DECAY"],
-            "bottom": "32-STEP SEQUENCER + KEYBOARD"
-        },
+        "type": "Semi-Modular Analog Synth",
         "specs": {
-            "vco": "Saw/Pulse with PWM",
-            "lfo": "0.1-600Hz measured",
-            "filter": "4-pole 17Hz-21.5kHz",
-            "sequencer": "32 steps, 64 patterns",
+            "oscillator": "1 VCO (Saw/Pulse with PWM)",
+            "lfo": "0.1-600Hz (Square/Triangle)",
+            "filter": "4-pole Ladder 17Hz-21.5kHz",
+            "envelope": "AD (1.25ms-3s attack, 1.25ms-7s decay)",
+            "sequencer": "32-step, 64 patterns, 8 banks",
             "patchbay": "32 points (18 in, 14 out)"
-        }
+        },
+        "controls": ["VCO", "LFO", "Filter", "Envelope", "Sequencer"]
     },
     "Subharmonicon": {
         "name": "Subharmonicon Polyrhythmic Synthesizer",
         "manufacturer": "Moog Music",
-        "panel_layout": {
-            "top_row": ["VCO1 FREQ", "VCO1 SUBS", "VCO2 FREQ", "VCO2 SUBS"],
-            "second_row": ["MIXER", "FILTER", "ENVELOPE"],
-            "third_row": ["RHYTHM 1", "RHYTHM 2", "RHYTHM 3", "RHYTHM 4"],
-            "bottom": "2x4-STEP SEQUENCERS"
-        },
+        "type": "Polyrhythmic Analog Synth",
         "specs": {
-            "vcos": "2 analog VCOs",
+            "oscillators": "2 VCOs",
             "subharmonics": "4 per VCO (÷1 to ÷16)",
             "rhythms": "4 polyrhythmic generators",
             "sequencers": "2x4-step",
             "patchbay": "16 points"
-        }
+        },
+        "controls": ["VCO1+Subs", "VCO2+Subs", "Rhythms", "Sequencers"]
+    },
+    "Analog Four": {
+        "name": "Analog Four MKII",
+        "manufacturer": "Elektron",
+        "type": "4-Voice Analog Synth + Sequencer",
+        "specs": {
+            "voices": "4 independent analog voices",
+            "tracks": "4 sequencer tracks",
+            "steps": "Up to 64 steps per pattern",
+            "filters": "Multimode per voice",
+            "cv": "4 CV/Gate outputs",
+            "features": "Parameter locks, conditional trigs, scenes"
+        },
+        "controls": ["Voice", "Filter", "Envelope", "LFO", "Sequencer"]
+    },
+    "Analog Rytm": {
+        "name": "Analog Rytm MKII",
+        "manufacturer": "Elektron",
+        "type": "Analog Drum Machine + Sampler",
+        "specs": {
+            "voices": "8 analog + 8 sample tracks",
+            "tracks": "12 total (8 drum, 4 chromatic)",
+            "pads": "12 velocity/pressure-sensitive",
+            "patterns": "128 per project",
+            "scenes": "12 per kit",
+            "features": "Performance macros, sample chains, parameter locks"
+        },
+        "controls": ["Track", "Synth", "Sample", "Filter", "Envelope", "Sequencer"]
     }
 }
 
 # ============================================================================
-# LEARNING SYSTEM - SPACED REPETITION & ACTIVE RECALL
+# LEARNING CONTENT
 # ============================================================================
 
-LEARNING_CHALLENGES = {
+CHALLENGES = {
     "DFAM": [
         {
             "title": "Classic Kick Drum",
             "difficulty": "Beginner",
-            "goal": "Create a punchy kick using VCO pitch sweep and fast VCA decay",
-            "patch": {
-                "VCO1_FREQ": 15, "VCO2_FREQ": 20, "VCO_DECAY": 300,
-                "VCO1_LEVEL": 80, "VCO2_LEVEL": 60, "NOISE": 10,
-                "VCF_CUTOFF": 800, "VCF_EG": 60, "VCF_DECAY": 400,
-                "VCA_DECAY": 150, "VCA_ATTACK": "FAST"
-            },
-            "try_hardware": "Start with VCO1 and VCO2 at noon. Slowly increase VCO_DECAY while tapping TRIGGER. Listen for pitch sweep.",
-            "learn": "Kick drums use fast pitch envelope (VCO EG) from high to low frequency. The 'thump' comes from this pitch sweep."
+            "goal": "Create a punchy kick using VCO pitch sweep",
+            "steps": [
+                "Set VCO1 freq to 12 o'clock (middle position)",
+                "Set VCO DECAY to ~300ms for pitch sweep",
+                "Set VCF CUTOFF to ~800Hz",
+                "Set VCF EG to +60% for filter sweep",
+                "Set VCA DECAY to ~150ms for short hit",
+                "Tap TRIGGER button - you should hear a kick!"
+            ],
+            "theory": "Kick drums = fast pitch envelope from high→low freq. The 'thump' comes from this rapid pitch drop. VCF envelope adds 'click'.",
+            "try_hardware": "Turn VCO DECAY while triggering. Hear how longer decay = 'boomy' kick, shorter = 'tight' kick."
         },
         {
             "title": "Hi-Hat Pattern",
             "difficulty": "Intermediate",
-            "goal": "Create metallic hi-hats using noise and high-pass filter",
-            "patch": {
-                "VCO1_FREQ": 85, "VCO2_FREQ": 90, "VCO_DECAY": 50,
-                "VCO1_LEVEL": 30, "VCO2_LEVEL": 35, "NOISE": 85,
-                "VCF_CUTOFF": 8000, "VCF_EG": -40, "VCF_DECAY": 80,
-                "VCA_DECAY": 60, "VCA_ATTACK": "FAST", "FILTER_MODE": "HP"
-            },
-            "try_hardware": "Switch filter to HP mode. Set VCOs very high. Increase NOISE to 75%. Note how filter EG shapes the 'tss' sound.",
-            "learn": "Hi-hats = HIGH frequency oscillators + NOISE + short decay. HP filter removes low end for crisp sound."
-        },
-        {
-            "title": "FM Bass Stab",
-            "difficulty": "Advanced",
-            "goal": "Use frequency modulation for harmonic bass stabs",
-            "patch": {
-                "VCO1_FREQ": 30, "VCO2_FREQ": 35, "VCO_DECAY": 200,
-                "FM_AMOUNT": 70, "HARD_SYNC": "ON",
-                "VCO1_LEVEL": 90, "VCO2_LEVEL": 45, "NOISE": 5,
-                "VCF_CUTOFF": 1200, "VCF_EG": 80, "VCF_DECAY": 300,
-                "VCA_DECAY": 250
-            },
-            "try_hardware": "Enable HARD SYNC. Patch VCO2→FM input. Adjust FM_AMOUNT while listening. Hear harmonic content change.",
-            "learn": "FM (Frequency Modulation) = one oscillator modulating another's frequency. Creates complex harmonic tones. SYNC locks VCO2 to VCO1 for tighter sound."
+            "goal": "Create metallic hi-hats using noise + HP filter",
+            "steps": [
+                "Switch filter to HP (high-pass) mode",
+                "Set VCO1 and VCO2 to highest position",
+                "Set NOISE to 75%",
+                "Set VCF CUTOFF high (8kHz+)",
+                "Set VCA DECAY very short (~60ms)",
+                "Program 8-step pattern: ON-off-ON-off (16th notes)"
+            ],
+            "theory": "Hi-hats = HIGH freq oscillators + NOISE + short decay. HP filter removes bass for crisp sound.",
+            "try_hardware": "Adjust VCA DECAY while pattern plays. Short = closed hat, longer = open hat."
         }
     ],
     "Mother-32": [
         {
-            "title": "Analog Bass",
+            "title": "Analog Bass Sequence",
             "difficulty": "Beginner",
-            "goal": "Program a classic analog bass sequence",
-            "patch": {
-                "VCO_FREQ": 0, "WAVE": "SAW", "GLIDE": 20,
-                "VCF_CUTOFF": 40, "VCF_RES": 60, "VCF_EG": 70,
-                "EG_ATTACK": 5, "EG_DECAY": 300,
-                "VCA_LEVEL": 75
-            },
-            "try_hardware": "Set sequencer to 8 steps. Program root note pattern: C-C-G-C-C-G-Bb-C. Add slight GLIDE for legato.",
-            "learn": "Saw wave = rich harmonics, perfect for bass. Low-pass filter removes highs. Resonance adds 'squelch' character."
+            "goal": "Program a classic TB-303 style bass line",
+            "steps": [
+                "Select SAW wave",
+                "Set VCF CUTOFF to ~40%",
+                "Set VCF RESONANCE to ~60%",
+                "Set VCF EG AMT to +70%",
+                "Program 8-step sequence: C-C-G-C-C-G-Bb-C",
+                "Add slight GLIDE (~20%) for slides"
+            ],
+            "theory": "Saw wave has rich harmonics. Low-pass filter cuts highs. Resonance adds 'squelch'. EG opens filter on note attack.",
+            "try_hardware": "Turn CUTOFF and RESONANCE while sequence plays. Find the sweet spot where it 'squelches'."
         }
     ]
 }
 
-RECALL_PROMPTS = {
+RECALL_QUESTIONS = {
     "DFAM": [
-        "What does VCO DECAY control? (Answer: Pitch envelope decay time)",
-        "Which filter mode removes low frequencies? (Answer: HP / High-Pass)",
-        "How many patch points total? (Answer: 24 - 15 inputs, 9 outputs)",
-        "What creates the 'kick' in a kick drum patch? (Answer: Fast pitch envelope from high to low)",
-        "What does FM AMOUNT control? (Answer: How much VCO2 modulates VCO1 frequency)"
+        "What does VCO DECAY control?||Pitch envelope decay time",
+        "Which filter mode removes LOW frequencies?||HP (High-Pass)",
+        "How many total patch points?||24 (15 inputs, 9 outputs)",
+        "What creates the 'kick' sound in drum patches?||Fast pitch envelope sweep from high to low frequency",
+        "What does FM AMOUNT do?||Controls how much VCO2 modulates VCO1 frequency"
     ],
     "Mother-32": [
-        "What is the LFO range? (Answer: 0.1-600Hz measured)",
-        "How many sequencer steps? (Answer: 32 steps)",
-        "How many patterns can be stored? (Answer: 64 patterns in 8 banks)",
-        "What waveforms does the VCO produce? (Answer: Saw and Pulse with PWM)"
+        "What is the LFO frequency range?||0.1 to 600Hz",
+        "How many sequencer steps?||32 steps per pattern",
+        "How many patterns can be stored?||64 patterns (8 banks × 8)",
+        "What waveforms does the VCO produce?||Saw and Pulse (with PWM)"
+    ],
+    "Analog Four": [
+        "How many voices?||4 independent analog voices",
+        "What are parameter locks?||Per-step parameter automation in the sequencer",
+        "How many CV outputs?||4 CV/Gate outputs",
+        "Maximum pattern length?||64 steps"
     ]
 }
 
 # ============================================================================
-# VISUAL COMPONENTS - HARDWARE ACCURATE
+# OPTIMIZED VISUAL COMPONENTS - CACHED FOR PERFORMANCE
 # ============================================================================
 
-def create_hardware_knob(label, value, min_val, max_val, bipolar=False, unit="", size=110):
-    """Hardware-accurate knob with proper scaling"""
-    fig = go.Figure()
-
-    # Outer bezel
-    fig.add_shape(type="circle", x0=-1.1, y0=-1.1, x1=1.1, y1=1.1,
-                  fillcolor="rgb(40,40,40)",
-                  line=dict(color="rgb(70,70,70)", width=2))
-
-    # Knob body - realistic gradient
-    fig.add_shape(type="circle", x0=-1, y0=-1, x1=1, y1=1,
-                  fillcolor="rgb(30,30,30)",
-                  line=dict(color="rgb(20,20,20)", width=1))
-
-    # Inner shadow circle
-    fig.add_shape(type="circle", x0=-0.88, y0=-0.88, x1=0.88, y1=0.88,
-                  fillcolor="rgb(25,25,25)",
-                  line=dict(color="rgb(15,15,15)", width=1))
-
-    # 11-position tick marks (hardware standard)
-    for i in range(11):
-        angle = -135 + (i * 27)  # 270° travel / 10 steps
-        rad = math.radians(angle)
-        x1, y1 = 0.72 * math.cos(rad), 0.72 * math.sin(rad)
-        x2, y2 = 0.88 * math.cos(rad), 0.88 * math.sin(rad)
-
-        # Highlight center mark for bipolar controls
-        if i == 5 and bipolar:
-            fig.add_shape(type="line", x0=x1, y0=y1, x1=x2, y1=y2,
-                         line=dict(color="#ffffff", width=3))
-        else:
-            fig.add_shape(type="line", x0=x1, y0=y1, x1=x2, y1=y2,
-                         line=dict(color="rgb(120,120,120)", width=1.5))
-
-    # Position indicator (white line from center)
+def create_css_knob(label, value, min_val, max_val, unit=""):
+    """Lightweight CSS knob - MUCH faster than Plotly"""
     normalized = (value - min_val) / (max_val - min_val) if max_val != min_val else 0.5
-    angle = -135 + (normalized * 270)
-    rad = math.radians(angle)
-    fig.add_shape(type="line", x0=0, y0=0,
-                  x1=0.65*math.cos(rad), y1=0.65*math.sin(rad),
-                  line=dict(color="#ffffff", width=3))
+    rotation = -135 + (normalized * 270)  # 270° rotation range
 
-    # Center cap
-    fig.add_shape(type="circle", x0=-0.12, y0=-0.12, x1=0.12, y1=0.12,
-                  fillcolor="rgb(180,180,180)", line=dict(width=0))
+    display_val = f"{value}{unit}" if unit else str(value)
 
-    # Label below
-    fig.add_annotation(x=0, y=-1.5, text=label, showarrow=False,
-                      font=dict(family="Arial", size=9, color="#999"))
+    html = f"""
+    <div class="css-knob">
+        <div class="knob-value">{display_val}</div>
+        <div class="knob-circle">
+            <div class="knob-indicator" style="transform: translateX(-50%) rotate({rotation}deg);"></div>
+        </div>
+        <div class="knob-label">{label}</div>
+    </div>
+    """
+    return html
 
-    # Value above (LED style)
-    display_val = f"{value}{unit}" if unit else f"{value}"
-    fig.add_annotation(x=0, y=1.5, text=display_val, showarrow=False,
-                      font=dict(family="Courier New", size=11, color="#0f0", weight=700))
-
-    fig.update_layout(
-        showlegend=False,
-        width=size, height=size,
-        margin=dict(l=0,r=0,t=15,b=15),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(visible=False, range=[-1.6,1.6]),
-        yaxis=dict(visible=False, range=[-1.6,1.6])
-    )
-
-    return fig
-
-def create_waveform_scope(wave_type, freq=1.0, height=100):
-    """Oscilloscope-style waveform display"""
-    x = np.linspace(0, 4*np.pi, 600)
+@lru_cache(maxsize=32)
+def create_waveform(wave_type, key_suffix=""):
+    """Cached waveform display - only regenerate when wave type changes"""
+    x = np.linspace(0, 4*np.pi, 400)
 
     if wave_type.lower() == "triangle":
-        y = 2 * np.abs(2 * ((x*freq)/(2*np.pi) - np.floor((x*freq)/(2*np.pi) + 0.5))) - 1
+        y = 2 * np.abs(2 * ((x)/(2*np.pi) - np.floor((x)/(2*np.pi) + 0.5))) - 1
     elif wave_type.lower() == "square":
-        y = np.sign(np.sin(x * freq))
+        y = np.sign(np.sin(x))
     elif wave_type.lower() == "saw":
-        y = 2 * ((x*freq)/(2*np.pi) - np.floor((x*freq)/(2*np.pi) + 0.5))
+        y = 2 * ((x)/(2*np.pi) - np.floor((x)/(2*np.pi) + 0.5))
     elif wave_type.lower() == "pulse":
-        y = (np.sin(x * freq) > 0.5).astype(float) * 2 - 1
+        y = (np.sin(x) > 0.5).astype(float) * 2 - 1
     else:  # noise
+        np.random.seed(42)  # Fixed seed for caching
         y = np.random.normal(0, 0.3, len(x))
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=x, y=y,
         mode='lines',
-        line=dict(color='#0f0', width=2),
+        line=dict(color='#0f0', width=1.5),
         fill='tozeroy',
-        fillcolor='rgba(0,255,0,0.15)'
+        fillcolor='rgba(0,255,0,0.1)'
     ))
-
-    # Grid lines for scope realism
-    for i in np.linspace(-1, 1, 5):
-        fig.add_hline(y=i, line_dash="dot", line_color="rgba(0,255,0,0.2)", line_width=1)
 
     fig.update_layout(
         showlegend=False,
-        height=height,
+        height=80,
         margin=dict(l=0,r=0,t=0,b=0),
         paper_bgcolor='rgb(5,5,5)',
         plot_bgcolor='rgb(0,0,0)',
         xaxis=dict(visible=False),
-        yaxis=dict(visible=False, range=[-1.3,1.3])
+        yaxis=dict(visible=False, range=[-1.2,1.2])
     )
 
     return fig
 
-def create_sequencer_display(steps, active_steps, velocities, current_step=0):
-    """Hardware-style step sequencer display"""
-    fig = go.Figure()
-
-    for i in range(steps):
-        x = i * 1.3
-        is_active = active_steps[i]
-        is_current = (i == current_step)
-
-        # Step pad
-        if is_current:
-            color = "rgb(255,153,0)"  # Orange for current step
-        elif is_active:
-            color = "rgb(0,255,0)"  # Green for active
-        else:
-            color = "rgb(30,30,30)"  # Dark for inactive
-
-        border_color = "rgb(100,100,100)" if not is_current else "rgb(255,153,0)"
-
-        fig.add_shape(
-            type="rect",
-            x0=x-0.5, y0=-0.5, x1=x+0.5, y1=0.5,
-            fillcolor=color,
-            line=dict(color=border_color, width=2)
-        )
-
-        # Step number
-        text_color = "#000" if (is_active or is_current) else "#666"
-        fig.add_annotation(
-            x=x, y=0, text=str(i+1),
-            showarrow=False,
-            font=dict(size=10, color=text_color, weight=700)
-        )
-
-        # Velocity bar
-        if velocities and velocities[i] > 0:
-            vel_height = (velocities[i] / 100) * 0.8
-            fig.add_shape(
-                type="rect",
-                x0=x-0.4, y0=0.6, x1=x+0.4, y1=0.6+vel_height,
-                fillcolor="rgba(0,255,0,0.6)",
-                line=dict(width=0)
-            )
-
-    fig.update_layout(
-        showlegend=False,
-        height=120,
-        margin=dict(l=5,r=5,t=5,b=5),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(visible=False, range=[-1, steps*1.3]),
-        yaxis=dict(visible=False, range=[-1, 2])
-    )
-
-    return fig
-
-def create_patch_bay(inputs, outputs):
-    """Visual patchbay representation"""
-    html = '<div style="background: #0a0a0a; padding: 15px; border-radius: 4px; border: 1px solid #333;">'
-    html += '<div style="font-size: 9px; color: #0f0; font-weight: 700; margin-bottom: 10px; letter-spacing: 1px;">PATCH BAY</div>'
-
-    html += '<div style="margin-bottom: 8px;">'
-    html += '<div style="font-size: 8px; color: #f90; margin-bottom: 4px;">OUTPUTS</div>'
-    for output in outputs[:6]:  # Show first 6
-        html += f'<span class="patch-point patch-point-output" title="{output}"></span>'
-    html += '</div>'
-
-    html += '<div>'
-    html += '<div style="font-size: 8px; color: #0f0; margin-bottom: 4px;">INPUTS</div>'
-    for inp in inputs[:8]:  # Show first 8
-        html += f'<span class="patch-point patch-point-input" title="{inp}"></span>'
-    html += '</div>'
-
-    html += '</div>'
-    return html
+def create_led_display(text):
+    """Simple LED-style display"""
+    return f'<div class="led-display">{text}</div>'
 
 # ============================================================================
 # STATE MANAGEMENT
 # ============================================================================
 
-def init_session_state():
-    """Initialize all session state variables"""
-    if 'device' not in st.session_state:
-        st.session_state.device = "DFAM"
-    if 'session_start' not in st.session_state:
-        st.session_state.session_start = datetime.now()
-    if 'challenges_completed' not in st.session_state:
-        st.session_state.challenges_completed = []
-    if 'active_challenge' not in st.session_state:
-        st.session_state.active_challenge = None
-    if 'learning_mode' not in st.session_state:
-        st.session_state.learning_mode = "Practice"
-    if 'dfam_pattern' not in st.session_state:
-        st.session_state.dfam_pattern = [True, False, True, False, True, False, True, False]
-    if 'dfam_velocities' not in st.session_state:
-        st.session_state.dfam_velocities = [100, 0, 80, 0, 100, 0, 70, 0]
-    if 'user_patches' not in st.session_state:
-        st.session_state.user_patches = {}
-    if 'show_recall' not in st.session_state:
-        st.session_state.show_recall = False
-    if 'recall_interval' not in st.session_state:
-        st.session_state.recall_interval = 5  # minutes
-
-def save_user_patch(device, name, settings):
-    """Save patch with timestamp for spaced repetition"""
-    st.session_state.user_patches[name] = {
-        "device": device,
-        "settings": settings,
-        "created": datetime.now().isoformat(),
-        "last_practiced": datetime.now().isoformat(),
-        "practice_count": 0
+def init_state():
+    """Initialize session state"""
+    defaults = {
+        'device': 'DFAM',
+        'mode': 'Practice',
+        'session_start': datetime.now(),
+        'challenges_done': [],
+        'active_challenge': None,
+        'dfam_pattern': [True, False, True, False, True, False, True, False],
+        'dfam_velocities': [100, 0, 80, 0, 100, 0, 70, 0]
     }
-    # Persist to file
-    with open("user_patches.json", "w") as f:
-        json.dump(st.session_state.user_patches, f, indent=2)
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
 
 # ============================================================================
-# MAIN APPLICATION
+# MAIN APP
 # ============================================================================
 
-init_session_state()
+init_state()
 
 # Header
 st.markdown("""
-<div style='text-align: center; padding: 20px; background: linear-gradient(90deg, #1a1a1a 0%, #0d0d0d 50%, #1a1a1a 100%);
+<div style='text-align: center; padding: 20px; background: linear-gradient(90deg, #1a1a1a 0%, #0a0a0a 50%, #1a1a1a 100%);
             border-bottom: 2px solid #0f0; margin-bottom: 20px;'>
-    <h1 style='color: #e0e0e0; font-size: 28px; font-weight: 700;
-               letter-spacing: 4px; margin: 0;'>SYNTH STUDIO</h1>
-    <p style='color: #0f0; font-size: 10px; text-transform: uppercase;
-              letter-spacing: 2px; margin: 8px 0 0 0;'>
-        Hardware Reference • Learning System • Laptop Workflow
+    <h1 style='color: #e0e0e0; font-size: 26px; font-weight: 700; letter-spacing: 3px; margin: 0;'>
+        SYNTH STUDIO
+    </h1>
+    <p style='color: #0f0; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; margin: 6px 0 0 0;'>
+        Hardware Reference • Learning System • Performance Optimized
     </p>
 </div>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# SIDEBAR - DEVICE & MODE SELECTION
+# SIDEBAR
 # ============================================================================
 
 with st.sidebar:
-    st.markdown("### DEVICE SELECT")
+    st.markdown("### 🎛️ DEVICE")
     device = st.selectbox(
         "",
         list(DEVICES.keys()),
         format_func=lambda x: DEVICES[x]["name"],
         label_visibility="collapsed",
-        key="device_selector"
+        key="device_select"
     )
     st.session_state.device = device
 
     st.markdown("---")
 
-    st.markdown("### LEARNING MODE")
-    mode = st.radio(
-        "",
-        ["Practice", "Challenge", "Active Recall"],
-        label_visibility="collapsed"
-    )
-    st.session_state.learning_mode = mode
+    st.markdown("### 📚 MODE")
+    mode = st.radio("", ["Practice", "Challenge", "Recall"], label_visibility="collapsed")
+    st.session_state.mode = mode
 
     st.markdown("---")
 
     # Quick specs
-    st.markdown("### QUICK SPECS")
+    st.markdown("### ⚡ SPECS")
     specs = DEVICES[device]["specs"]
     for key, val in specs.items():
-        st.markdown(f"**{key.replace('_', ' ').upper()}**  \n`{val}`")
+        st.caption(f"**{key.upper()}**")
+        st.caption(f"`{val}`")
 
     st.markdown("---")
 
     # Session stats
     elapsed = datetime.now() - st.session_state.session_start
     mins = elapsed.seconds // 60
-    secs = elapsed.seconds % 60
-    st.metric("Session Time", f"{mins}:{secs:02d}")
-    st.metric("Challenges Done", len(st.session_state.challenges_completed))
+    st.metric("Session", f"{mins} min")
+    st.metric("Challenges", len(st.session_state.challenges_done))
 
     st.markdown("---")
 
-    # Help
     with st.expander("💡 How to Use"):
         st.markdown("""
-        **Laptop-Beside-Hardware Workflow:**
+        **Modes:**
+        - **Practice**: Free exploration
+        - **Challenge**: Guided patches
+        - **Recall**: Test knowledge
 
-        1. **Practice Mode**: Mirror your hardware settings
-        2. **Challenge Mode**: Follow guided patches
-        3. **Active Recall**: Test your knowledge
-
-        **Learning Tips:**
-        - Complete challenges in order
-        - Try patches on real hardware
-        - Use recall prompts every 5 min
-        - Save your own patches
+        **Workflow:**
+        1. Select device
+        2. Choose mode
+        3. Follow along on hardware
+        4. Complete challenges
+        5. Test with recall
         """)
 
 # ============================================================================
-# MAIN CONTENT - DEVICE INTERFACES
+# MAIN CONTENT
 # ============================================================================
 
-if device == "DFAM":
+if mode == "Challenge":
+    st.markdown(f"## 🎯 {DEVICES[device]['name']} Challenges")
 
-    # Mode-specific content
-    if mode == "Challenge":
-        st.markdown("## 🎯 Learning Challenges")
+    challenges = CHALLENGES.get(device, [])
 
-        challenges = LEARNING_CHALLENGES["DFAM"]
+    if not challenges:
+        st.info(f"Challenges coming soon for {DEVICES[device]['name']}!")
+    else:
         challenge_names = [f"{c['difficulty']}: {c['title']}" for c in challenges]
 
         col1, col2 = st.columns([3, 1])
@@ -673,419 +525,351 @@ if device == "DFAM":
                 st.rerun()
 
         if st.session_state.active_challenge:
-            challenge = st.session_state.active_challenge
+            ch = st.session_state.active_challenge
 
             st.markdown(f"""
-            <div class='learning-tip'>
-            <strong>GOAL:</strong> {challenge['goal']}<br>
-            <strong>DIFFICULTY:</strong> {challenge['difficulty']}
+            <div class='tip-box'>
+            <strong>🎯 GOAL:</strong> {ch['goal']}<br>
+            <strong>📊 DIFFICULTY:</strong> {ch['difficulty']}
             </div>
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-            <div class='try-hardware'>
+            <div class='hardware-tip'>
             <strong>🎛️ TRY ON HARDWARE:</strong><br>
-            {challenge['try_hardware']}
+            {ch['try_hardware']}
             </div>
             """, unsafe_allow_html=True)
+
+            st.markdown("**STEPS:**")
+            for i, step in enumerate(ch['steps'], 1):
+                st.markdown(f"{i}. {step}")
 
             st.markdown(f"""
-            <div class='learning-tip'>
-            <strong>📚 LEARN:</strong><br>
-            {challenge['learn']}
+            <div class='tip-box'>
+            <strong>📚 THEORY:</strong><br>
+            {ch['theory']}
             </div>
             """, unsafe_allow_html=True)
-
-            # Load patch settings
-            patch = challenge['patch']
 
             if st.button("✅ Mark Complete", use_container_width=True):
-                if challenge['title'] not in st.session_state.challenges_completed:
-                    st.session_state.challenges_completed.append(challenge['title'])
-                    st.success(f"Challenge '{challenge['title']}' completed! 🎉")
+                if ch['title'] not in st.session_state.challenges_done:
+                    st.session_state.challenges_done.append(ch['title'])
+                    st.success(f"Challenge '{ch['title']}' completed! 🎉")
                 st.session_state.active_challenge = None
                 st.rerun()
 
-        st.markdown("---")
+elif mode == "Recall":
+    st.markdown(f"## 🧠 Active Recall - {DEVICES[device]['name']}")
 
-    elif mode == "Active Recall":
-        st.markdown("## 🧠 Active Recall Practice")
+    st.markdown("""
+    <div class='tip-box'>
+    <strong>Science-backed learning:</strong> Active recall strengthens memory.
+    Try to answer before revealing.
+    </div>
+    """, unsafe_allow_html=True)
+
+    questions = RECALL_QUESTIONS.get(device, [])
+
+    if not questions:
+        st.info(f"Recall questions coming soon for {DEVICES[device]['name']}!")
+    else:
+        for i, q in enumerate(questions):
+            parts = q.split("||")
+            question = parts[0]
+            answer = parts[1] if len(parts) > 1 else "Answer not available"
+
+            with st.expander(f"❓ Question {i+1}"):
+                st.markdown(f"**{question}**")
+                if st.button(f"Show Answer", key=f"ans_{i}"):
+                    st.success(f"✓ {answer}")
+
+else:  # Practice mode
+    st.markdown(f"## {DEVICES[device]['name']}")
+    st.markdown(f"*{DEVICES[device]['type']} by {DEVICES[device]['manufacturer']}*")
+
+    # ========================================================================
+    # DFAM INTERFACE
+    # ========================================================================
+
+    if device == "DFAM":
+
+        # Oscillators
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Oscillators</div>', unsafe_allow_html=True)
+
+        cols = st.columns(6)
+        with cols[0]:
+            vco1_freq = st.slider("VCO1 Freq", -100, 100, 0, key="v1f")
+            st.markdown(create_css_knob("VCO1 FREQ", vco1_freq, -100, 100), unsafe_allow_html=True)
+
+        with cols[1]:
+            vco1_wave = st.select_slider("Wave", ["Triangle", "Square"], key="v1w")
+            st.plotly_chart(create_waveform(vco1_wave, "v1"), use_container_width=True, key="wave1")
+
+        with cols[2]:
+            vco1_eg = st.slider("VCO1 EG", -100, 100, 0, key="v1eg")
+            st.markdown(create_css_knob("EG AMT", vco1_eg, -100, 100, "%"), unsafe_allow_html=True)
+
+        with cols[3]:
+            vco2_freq = st.slider("VCO2 Freq", -100, 100, 0, key="v2f")
+            st.markdown(create_css_knob("VCO2 FREQ", vco2_freq, -100, 100), unsafe_allow_html=True)
+
+        with cols[4]:
+            vco2_wave = st.select_slider("Wave", ["Triangle", "Square"], key="v2w")
+            st.plotly_chart(create_waveform(vco2_wave, "v2"), use_container_width=True, key="wave2")
+
+        with cols[5]:
+            vco2_eg = st.slider("VCO2 EG", -100, 100, 0, key="v2eg")
+            st.markdown(create_css_knob("EG AMT", vco2_eg, -100, 100, "%"), unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Mixer & VCO Controls
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Mixer & VCO Controls</div>', unsafe_allow_html=True)
+
+        cols = st.columns(6)
+        with cols[0]:
+            vco_decay = st.slider("VCO Decay", 10, 10000, 300, key="vcd")
+            st.caption(f"{vco_decay}ms")
+        with cols[1]:
+            fm_amt = st.slider("FM Amount", 0, 100, 0, key="fm")
+            st.markdown(create_css_knob("FM", fm_amt, 0, 100, "%"), unsafe_allow_html=True)
+        with cols[2]:
+            hard_sync = st.checkbox("Hard Sync", False, key="sync")
+            st.markdown(create_led_display("ON" if hard_sync else "OFF"), unsafe_allow_html=True)
+        with cols[3]:
+            vco1_lvl = st.slider("VCO1 Level", 0, 100, 75, key="v1l")
+            st.markdown(create_css_knob("VCO1", vco1_lvl, 0, 100, "%"), unsafe_allow_html=True)
+        with cols[4]:
+            vco2_lvl = st.slider("VCO2 Level", 0, 100, 50, key="v2l")
+            st.markdown(create_css_knob("VCO2", vco2_lvl, 0, 100, "%"), unsafe_allow_html=True)
+        with cols[5]:
+            noise = st.slider("Noise", 0, 100, 10, key="noi")
+            st.markdown(create_css_knob("NOISE", noise, 0, 100, "%"), unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Filter
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Filter (4-Pole Ladder)</div>', unsafe_allow_html=True)
+
+        cols = st.columns(5)
+        with cols[0]:
+            cutoff = st.slider("Cutoff", 20, 20000, 1000, key="cut")
+            st.caption(f"{cutoff}Hz")
+        with cols[1]:
+            res = st.slider("Resonance", 0, 100, 30, key="res")
+            st.markdown(create_css_knob("RES", res, 0, 100, "%"), unsafe_allow_html=True)
+            if res > 85:
+                st.caption("⚠️ Self-osc")
+        with cols[2]:
+            vcf_eg = st.slider("VCF EG", -100, 100, 0, key="vcfeg")
+            st.markdown(create_css_knob("VCF EG", vcf_eg, -100, 100, "%"), unsafe_allow_html=True)
+        with cols[3]:
+            vcf_decay = st.slider("VCF Decay", 10, 10000, 400, key="vcfd")
+            st.caption(f"{vcf_decay}ms")
+        with cols[4]:
+            flt_mode = st.select_slider("Mode", ["LP", "HP"], key="fmode")
+            st.markdown(create_led_display(flt_mode), unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # VCA
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">VCA</div>', unsafe_allow_html=True)
+
+        cols = st.columns(3)
+        with cols[0]:
+            vca_decay = st.slider("VCA Decay", 10, 10000, 500, key="vcad")
+            st.caption(f"{vca_decay}ms")
+        with cols[1]:
+            vca_attack = st.select_slider("VCA Attack", ["FAST", "SLOW"], key="vcaa")
+            st.markdown(create_led_display(vca_attack), unsafe_allow_html=True)
+        with cols[2]:
+            volume = st.slider("Volume", 0, 100, 75, key="vol")
+            st.markdown(create_css_knob("VOL", volume, 0, 100, "%"), unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Sequencer
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">8-Step Sequencer</div>', unsafe_allow_html=True)
+
+        tempo = st.slider("Tempo (BPM)", 10, 500, 120, key="tempo")
+        step_time = 60000 / (tempo * 2)
+        st.caption(f"Step: {step_time:.1f}ms")
+
+        st.markdown("**Pattern:**")
+        step_cols = st.columns(8)
+        for i in range(8):
+            with step_cols[i]:
+                active = st.checkbox("", st.session_state.dfam_pattern[i], key=f"s{i}")
+                st.session_state.dfam_pattern[i] = active
+                vel = st.slider("V", 0, 100, st.session_state.dfam_velocities[i], key=f"vel{i}", label_visibility="collapsed")
+                st.session_state.dfam_velocities[i] = vel
+                st.caption(f"Step {i+1}")
+
+        transport = st.columns(4)
+        with transport[0]:
+            st.button("▶ RUN", use_container_width=True)
+        with transport[1]:
+            st.button("⏸ STOP", use_container_width=True)
+        with transport[2]:
+            st.button("↻ RESET", use_container_width=True)
+        with transport[3]:
+            st.button("💾 SAVE", use_container_width=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # ========================================================================
+    # MOTHER-32 INTERFACE
+    # ========================================================================
+
+    elif device == "Mother-32":
+
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Oscillator & LFO</div>', unsafe_allow_html=True)
+
+        cols = st.columns(5)
+        with cols[0]:
+            glide = st.slider("Glide", 0, 100, 0, key="glide")
+            st.markdown(create_css_knob("GLIDE", glide, 0, 100, "%"), unsafe_allow_html=True)
+        with cols[1]:
+            m32_vco = st.slider("VCO Freq", -100, 100, 0, key="m32vco")
+            st.markdown(create_css_knob("VCO", m32_vco, -100, 100), unsafe_allow_html=True)
+        with cols[2]:
+            m32_wave = st.select_slider("Wave", ["Saw", "Pulse"], key="m32wave")
+            st.plotly_chart(create_waveform(m32_wave, "m32w"), use_container_width=True, key="m32_wave_plot")
+        with cols[3]:
+            lfo_rate = st.slider("LFO Rate", 0.1, 600, 2.0, key="lfo")
+            st.caption(f"{lfo_rate:.1f}Hz")
+        with cols[4]:
+            lfo_wave = st.select_slider("LFO Wave", ["Square", "Triangle"], key="lfow")
+            st.plotly_chart(create_waveform(lfo_wave, "lfow"), use_container_width=True, key="lfo_wave_plot")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">Filter & VCA</div>', unsafe_allow_html=True)
+
+        cols = st.columns(4)
+        with cols[0]:
+            m32_cut = st.slider("Cutoff", 17, 21500, 1000, key="m32cut")
+            st.caption(f"{m32_cut}Hz")
+        with cols[1]:
+            m32_res = st.slider("Resonance", 0, 100, 30, key="m32res")
+            st.markdown(create_css_knob("RES", m32_res, 0, 100, "%"), unsafe_allow_html=True)
+        with cols[2]:
+            m32_vcfeg = st.slider("VCF EG", -100, 100, 0, key="m32vcfeg")
+            st.markdown(create_css_knob("EG", m32_vcfeg, -100, 100, "%"), unsafe_allow_html=True)
+        with cols[3]:
+            m32_vca = st.slider("VCA Level", 0, 100, 75, key="m32vca")
+            st.markdown(create_css_knob("VCA", m32_vca, 0, 100, "%"), unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.info("32-step sequencer • 64 patterns • 13-note keyboard")
+
+    # ========================================================================
+    # SUBHARMONICON INTERFACE
+    # ========================================================================
+
+    elif device == "Subharmonicon":
+
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">VCOs & Subharmonics</div>', unsafe_allow_html=True)
+
+        cols = st.columns(4)
+        with cols[0]:
+            sub_vco1 = st.slider("VCO1 Freq", -100, 100, 0, key="subv1")
+            st.markdown(create_css_knob("VCO1", sub_vco1, -100, 100), unsafe_allow_html=True)
+        with cols[1]:
+            st.selectbox("Sub 1A", ["÷1", "÷2", "÷3", "÷4", "÷5", "÷6", "÷8"], key="sub1a")
+        with cols[2]:
+            sub_vco2 = st.slider("VCO2 Freq", -100, 100, 0, key="subv2")
+            st.markdown(create_css_knob("VCO2", sub_vco2, -100, 100), unsafe_allow_html=True)
+        with cols[3]:
+            st.selectbox("Sub 2A", ["÷1", "÷2", "÷3", "÷4", "÷5", "÷6", "÷8"], key="sub2a")
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("""
-        <div class='learning-tip'>
-        <strong>Science-backed learning:</strong> Active recall strengthens neural pathways.
-        Answer these questions without looking at your hardware.
+        <div class='tip-box'>
+        <strong>Polyrhythms:</strong> Each rhythm generator divides the clock differently.
+        Example: ÷4 + ÷3 = 4-against-3 polyrhythm.
         </div>
         """, unsafe_allow_html=True)
 
-        prompts = RECALL_PROMPTS.get(device, [])
-
-        for i, prompt in enumerate(prompts):
-            with st.expander(f"Question {i+1}"):
-                st.markdown(f"**{prompt.split('(Answer:')[0].strip()}**")
-                if st.button(f"Show Answer", key=f"ans_{i}"):
-                    answer = prompt.split('(Answer:')[1].strip().rstrip(')')
-                    st.success(f"✓ {answer}")
-
-        st.markdown("---")
-
-    # Hardware panel layout
-    st.markdown("## DFAM Control Panel")
-    st.markdown("*Layout matches physical hardware - follow along with your device*")
-
-    # Top row - Oscillators
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">OSCILLATORS</div>', unsafe_allow_html=True)
-
-    cols = st.columns(6)
-    with cols[0]:
-        vco1_freq = st.slider("VCO1 FREQ", -100, 100, 0, key="vco1f")
-        st.plotly_chart(create_hardware_knob("VCO1 FREQ", vco1_freq, -100, 100, True), use_container_width=True)
-
-    with cols[1]:
-        vco1_wave = st.select_slider("VCO1 WAVE", ["Triangle", "Square"], key="vco1w")
-        st.plotly_chart(create_waveform_scope(vco1_wave, height=90), use_container_width=True)
-
-    with cols[2]:
-        vco1_eg = st.slider("VCO1 EG", -100, 100, 0, key="vco1eg")
-        st.plotly_chart(create_hardware_knob("VCO1 EG", vco1_eg, -100, 100, True, "%"), use_container_width=True)
-
-    with cols[3]:
-        vco2_freq = st.slider("VCO2 FREQ", -100, 100, 0, key="vco2f")
-        st.plotly_chart(create_hardware_knob("VCO2 FREQ", vco2_freq, -100, 100, True), use_container_width=True)
-
-    with cols[4]:
-        vco2_wave = st.select_slider("VCO2 WAVE", ["Triangle", "Square"], key="vco2w")
-        st.plotly_chart(create_waveform_scope(vco2_wave, height=90), use_container_width=True)
-
-    with cols[5]:
-        vco2_eg = st.slider("VCO2 EG", -100, 100, 0, key="vco2eg")
-        st.plotly_chart(create_hardware_knob("VCO2 EG", vco2_eg, -100, 100, True, "%"), use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Second row - VCO Controls & Mixer
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">VCO CONTROLS & MIXER</div>', unsafe_allow_html=True)
-
-    cols = st.columns(6)
-    with cols[0]:
-        vco_decay = st.slider("VCO DECAY", 10, 10000, 300, key="vcod")
-        st.caption(f"{vco_decay}ms")
-
-    with cols[1]:
-        fm_amt = st.slider("FM AMOUNT", 0, 100, 0, key="fm")
-        st.plotly_chart(create_hardware_knob("FM AMT", fm_amt, 0, 100, unit="%"), use_container_width=True)
-
-    with cols[2]:
-        hard_sync = st.checkbox("HARD SYNC", False, key="sync")
-        st.markdown(f"<div class='led-display'>{'ON' if hard_sync else 'OFF'}</div>", unsafe_allow_html=True)
-
-    with cols[3]:
-        vco1_lvl = st.slider("VCO1 LVL", 0, 100, 75, key="vco1l")
-        st.plotly_chart(create_hardware_knob("VCO1", vco1_lvl, 0, 100, unit="%"), use_container_width=True)
-
-    with cols[4]:
-        vco2_lvl = st.slider("VCO2 LVL", 0, 100, 50, key="vco2l")
-        st.plotly_chart(create_hardware_knob("VCO2", vco2_lvl, 0, 100, unit="%"), use_container_width=True)
-
-    with cols[5]:
-        noise = st.slider("NOISE", 0, 100, 10, key="noise")
-        st.plotly_chart(create_hardware_knob("NOISE", noise, 0, 100, unit="%"), use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Third row - Filter
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">FILTER (4-POLE LADDER)</div>', unsafe_allow_html=True)
-
-    cols = st.columns(5)
-    with cols[0]:
-        vcf_cutoff = st.slider("CUTOFF", 20, 20000, 1000, key="cutoff")
-        st.caption(f"{vcf_cutoff}Hz")
-
-    with cols[1]:
-        vcf_res = st.slider("RESONANCE", 0, 100, 30, key="res")
-        st.plotly_chart(create_hardware_knob("RES", vcf_res, 0, 100, unit="%"), use_container_width=True)
-        if vcf_res > 85:
-            st.caption("⚠️ Self-oscillation")
-
-    with cols[2]:
-        vcf_eg = st.slider("VCF EG AMT", -100, 100, 0, key="vcfeg")
-        st.plotly_chart(create_hardware_knob("VCF EG", vcf_eg, -100, 100, True, "%"), use_container_width=True)
-
-    with cols[3]:
-        vcf_decay = st.slider("VCF DECAY", 10, 10000, 400, key="vcfd")
-        st.caption(f"{vcf_decay}ms")
-
-    with cols[4]:
-        vcf_mode = st.select_slider("FILTER MODE", ["LP", "HP"], key="fmode")
-        st.markdown(f"<div class='led-display'>{vcf_mode}</div>", unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Fourth row - VCA
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">VCA (VOLTAGE CONTROLLED AMPLIFIER)</div>', unsafe_allow_html=True)
-
-    cols = st.columns(3)
-    with cols[0]:
-        vca_decay = st.slider("VCA DECAY", 10, 10000, 500, key="vcad")
-        st.caption(f"{vca_decay}ms")
-
-    with cols[1]:
-        vca_attack = st.select_slider("VCA ATTACK", ["FAST", "SLOW"], key="vcaa")
-        st.markdown(f"<div class='led-display'>{vca_attack}</div>", unsafe_allow_html=True)
-
-    with cols[2]:
-        volume = st.slider("VOLUME", 0, 100, 75, key="vol")
-        st.plotly_chart(create_hardware_knob("VOL", volume, 0, 100, unit="%"), use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Bottom - Sequencer
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">8-STEP ANALOG SEQUENCER</div>', unsafe_allow_html=True)
-
-    tempo = st.slider("TEMPO (BPM)", 10, 500, 120, key="tempo")
-    step_time = 60000 / (tempo * 2)
-    st.caption(f"Step time: {step_time:.1f}ms • Pattern length: {step_time*8:.1f}ms")
-
-    # Step editor
-    st.markdown("**STEP PATTERN** (Active steps)")
-    step_cols = st.columns(8)
-    for i in range(8):
-        with step_cols[i]:
-            active = st.checkbox("", st.session_state.dfam_pattern[i], key=f"step_{i}")
-            st.session_state.dfam_pattern[i] = active
-            st.markdown(f"<div style='text-align:center; font-size:9px; color:#999;'>STEP {i+1}</div>", unsafe_allow_html=True)
-
-    st.markdown("**VELOCITY** (Per step)")
-    vel_cols = st.columns(8)
-    for i in range(8):
-        with vel_cols[i]:
-            vel = st.slider("", 0, 100, st.session_state.dfam_velocities[i], key=f"vel_{i}", label_visibility="collapsed")
-            st.session_state.dfam_velocities[i] = vel
-
-    # Sequencer visualization
-    st.plotly_chart(
-        create_sequencer_display(8, st.session_state.dfam_pattern, st.session_state.dfam_velocities),
-        use_container_width=True
-    )
-
-    # Transport controls
-    transport = st.columns(5)
-    with transport[0]:
-        st.button("▶ RUN", use_container_width=True)
-    with transport[1]:
-        st.button("⏸ STOP", use_container_width=True)
-    with transport[2]:
-        st.button("⏭ STEP", use_container_width=True)
-    with transport[3]:
-        st.button("↻ RESET", use_container_width=True)
-    with transport[4]:
-        if st.button("💾 SAVE", use_container_width=True):
-            settings = {
-                "vco1_freq": vco1_freq, "vco2_freq": vco2_freq,
-                "vco_decay": vco_decay, "fm_amount": fm_amt,
-                "vco1_level": vco1_lvl, "vco2_level": vco2_lvl, "noise": noise,
-                "vcf_cutoff": vcf_cutoff, "vcf_res": vcf_res, "vcf_eg": vcf_eg,
-                "vcf_decay": vcf_decay, "vca_decay": vca_decay,
-                "pattern": st.session_state.dfam_pattern,
-                "velocities": st.session_state.dfam_velocities
-            }
-            name = f"DFAM_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            save_user_patch("DFAM", name, settings)
-            st.success(f"✓ Saved as {name}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Patchbay
-    st.markdown("### Patchbay")
-    outputs = ["VCA", "VCA EG", "VCF EG", "VCO EG", "VCO1", "VCO2", "TRIGGER", "VELOCITY", "PITCH"]
-    inputs = ["TRIGGER", "VCA CV", "VELOCITY", "VCA DECAY", "EXT AUDIO", "VCF DECAY", "NOISE", "VCO DECAY", "VCF MOD", "VCO1 CV", "FM AMT", "VCO2 CV", "TEMPO", "RUN/STOP", "ADV/CLK"]
-    st.markdown(create_patch_bay(inputs, outputs), unsafe_allow_html=True)
-
-elif device == "Mother-32":
-
-    st.markdown("## Mother-32 Control Panel")
-    st.markdown("*32-step sequencer with full patchbay - layout matches hardware*")
-
-    # Top row
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">OSCILLATOR & LFO</div>', unsafe_allow_html=True)
-
-    cols = st.columns(5)
-    with cols[0]:
-        glide = st.slider("GLIDE", 0, 100, 0, key="m32_glide")
-        st.plotly_chart(create_hardware_knob("GLIDE", glide, 0, 100, unit="%"), use_container_width=True)
-
-    with cols[1]:
-        m32_vco_freq = st.slider("VCO FREQ", -100, 100, 0, key="m32_vco")
-        st.plotly_chart(create_hardware_knob("VCO", m32_vco_freq, -100, 100, True), use_container_width=True)
-
-    with cols[2]:
-        m32_wave = st.select_slider("WAVE", ["Saw", "Pulse"], key="m32_wave")
-        st.plotly_chart(create_waveform_scope(m32_wave, height=90), use_container_width=True)
-        if m32_wave == "Pulse":
-            pw = st.slider("Pulse Width", 2, 98, 50, key="m32_pw")
-            st.caption(f"PW: {pw}%")
-
-    with cols[3]:
-        lfo_rate = st.slider("LFO RATE", 0.1, 600, 2.0, key="m32_lfo")
-        st.caption(f"{lfo_rate:.1f}Hz")
-
-    with cols[4]:
-        lfo_wave = st.select_slider("LFO WAVE", ["Square", "Triangle"], key="m32_lfowave")
-        st.plotly_chart(create_waveform_scope(lfo_wave, 0.3, height=90), use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Second row - Filter & VCA
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">FILTER & VCA</div>', unsafe_allow_html=True)
-
-    cols = st.columns(4)
-    with cols[0]:
-        m32_cutoff = st.slider("VCF CUTOFF", 17, 21500, 1000, key="m32_cut")
-        st.caption(f"{m32_cutoff}Hz")
-
-    with cols[1]:
-        m32_res = st.slider("VCF RES", 0, 100, 30, key="m32_res")
-        st.plotly_chart(create_hardware_knob("RES", m32_res, 0, 100, unit="%"), use_container_width=True)
-
-    with cols[2]:
-        m32_vcf_eg = st.slider("VCF EG AMT", -100, 100, 0, key="m32_vcfeg")
-        st.plotly_chart(create_hardware_knob("EG AMT", m32_vcf_eg, -100, 100, True, "%"), use_container_width=True)
-
-    with cols[3]:
-        m32_vca = st.slider("VCA LEVEL", 0, 100, 75, key="m32_vca")
-        st.plotly_chart(create_hardware_knob("VCA", m32_vca, 0, 100, unit="%"), use_container_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Envelope
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">ENVELOPE GENERATOR</div>', unsafe_allow_html=True)
-
-    cols = st.columns(2)
-    with cols[0]:
-        m32_attack = st.slider("ATTACK", 1.25, 3000, 10, key="m32_att")
-        st.caption(f"{m32_attack:.1f}ms")
-
-    with cols[1]:
-        m32_decay = st.slider("DECAY/RELEASE", 1.25, 7000, 500, key="m32_dec")
-        st.caption(f"{m32_decay:.1f}ms")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Sequencer
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">32-STEP SEQUENCER</div>', unsafe_allow_html=True)
-
-    st.info("32-step sequencer with 64 patterns in 8 banks")
-
-    seq_tempo = st.slider("TEMPO", 10, 300, 120, key="m32_tempo")
-    st.caption(f"{seq_tempo} BPM")
-
-    st.markdown("**Sequencer features:**")
-    st.markdown("- 32 steps per pattern")
-    st.markdown("- 64 patterns (8 banks × 8 patterns)")
-    st.markdown("- Real-time transpose via keyboard")
-    st.markdown("- Gate length control")
-    st.markdown("- Ratcheting")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Patchbay
-    st.markdown("### Patchbay (32 points)")
-    outputs = ["VCA", "NOISE", "VCF", "VCO SAW", "VCO PULSE", "LFO TRI", "LFO SQ", "VC MIX", "MULT 1", "MULT 2", "ASSIGN", "EG", "KB", "GATE"]
-    inputs = ["EXT AUDIO", "MIX CV", "VCA CV", "VCF CUTOFF", "VCF RES", "VCO 1V/OCT", "VCO LIN FM", "VCO MOD", "LFO RATE", "MIX 1", "MIX 2", "VC MIX", "MULT", "GATE", "TEMPO", "RUN/STOP", "RESET", "HOLD"]
-    st.markdown(create_patch_bay(inputs, outputs), unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class='try-hardware'>
-    <strong>🎛️ WORKFLOW TIP:</strong><br>
-    Mother-32's 13-note keyboard makes it perfect for bass sequences. Program a pattern on your hardware,
-    then use this reference to understand which patch points to explore for modulation.
-    </div>
-    """, unsafe_allow_html=True)
-
-elif device == "Subharmonicon":
-
-    st.markdown("## Subharmonicon Control Panel")
-    st.markdown("*Polyrhythmic synthesizer - subharmonics & rhythm generators*")
-
-    # Oscillators & Subharmonics
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">VCO 1 & SUBHARMONICS</div>', unsafe_allow_html=True)
-
-    cols = st.columns(5)
-    with cols[0]:
-        sub_vco1 = st.slider("VCO1 FREQ", -100, 100, 0, key="sub_vco1")
-        st.plotly_chart(create_hardware_knob("VCO1", sub_vco1, -100, 100, True), use_container_width=True)
-
-    with cols[1]:
-        sub_1a = st.selectbox("SUB 1A", ["÷1", "÷2", "÷3", "÷4", "÷5", "÷6", "÷7", "÷8", "÷10", "÷12", "÷16"], index=0, key="sub1a")
-
-    with cols[2]:
-        sub_1b = st.selectbox("SUB 1B", ["÷1", "÷2", "÷3", "÷4", "÷5", "÷6", "÷7", "÷8", "÷10", "÷12", "÷16"], index=1, key="sub1b")
-
-    with cols[3]:
-        sub_vco2 = st.slider("VCO2 FREQ", -100, 100, 0, key="sub_vco2")
-        st.plotly_chart(create_hardware_knob("VCO2", sub_vco2, -100, 100, True), use_container_width=True)
-
-    with cols[4]:
-        sub_2a = st.selectbox("SUB 2A", ["÷1", "÷2", "÷3", "÷4", "÷5", "÷6", "÷7", "÷8", "÷10", "÷12", "÷16"], index=2, key="sub2a")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Rhythm generators
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">POLYRHYTHM GENERATORS</div>', unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class='learning-tip'>
-    <strong>POLYRHYTHM CONCEPT:</strong><br>
-    Each rhythm generator divides the master clock by different values, creating complex interlocking patterns.
-    Example: Rhythm 1 = ÷4, Rhythm 2 = ÷3 creates a 4-against-3 polyrhythm.
-    </div>
-    """, unsafe_allow_html=True)
-
-    cols = st.columns(4)
-    for i in range(4):
-        with cols[i]:
-            st.selectbox(f"RHYTHM {i+1}", ["÷1", "÷2", "÷3", "÷4", "÷5", "÷6", "÷8", "÷12", "÷16"], index=i, key=f"rhythm{i}")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Sequencers
-    st.markdown('<div class="hardware-panel">', unsafe_allow_html=True)
-    st.markdown('<div class="section-header">DUAL 4-STEP SEQUENCERS</div>', unsafe_allow_html=True)
-
-    st.info("2 independent 4-step sequencers, each driven by rhythm generators")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**SEQUENCER 1**")
+        cols = st.columns(4)
         for i in range(4):
-            st.slider(f"Step {i+1}", 0, 100, 50, key=f"seq1_{i}")
+            with cols[i]:
+                st.selectbox(f"Rhythm {i+1}", ["÷1", "÷2", "÷3", "÷4", "÷6", "÷8"], key=f"rhy{i}")
 
-    with col2:
-        st.markdown("**SEQUENCER 2**")
-        for i in range(4):
-            st.slider(f"Step {i+1}", 0, 100, 50, key=f"seq2_{i}")
+    # ========================================================================
+    # ELEKTRON DEVICES
+    # ========================================================================
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    elif device in ["Analog Four", "Analog Rytm"]:
 
-    st.markdown("""
-    <div class='try-hardware'>
-    <strong>🎛️ WORKFLOW TIP:</strong><br>
-    Subharmonicon excels at drones and evolving patterns. Start with simple ÷1 divisions,
-    then gradually add complexity. Listen to how subharmonics create harmonic series.
-    Use polyrhythms to create evolving, non-repeating patterns.
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown('<div class="hw-panel">', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title">{DEVICES[device]["name"]}</div>', unsafe_allow_html=True)
+
+        if device == "Analog Four":
+            st.markdown("""
+            **4-Voice Architecture:**
+            - 4 independent analog voices
+            - Multimode filters per voice
+            - 4 CV/Gate outputs
+            - Parameter locks per step
+            - Conditional triggers
+            - Up to 64 steps per pattern
+
+            **Workflow:**
+            1. Select track (1-4)
+            2. Edit voice parameters
+            3. Program sequencer
+            4. Add parameter locks
+            5. Set up scenes
+            """)
+
+            st.markdown("""
+            <div class='hardware-tip'>
+            <strong>🎛️ WORKFLOW TIP:</strong><br>
+            Use parameter locks to automate filter sweeps per step.
+            Press [TRIG] + turn any knob to lock that parameter to the current step.
+            </div>
+            """, unsafe_allow_html=True)
+
+        else:  # Analog Rytm
+            st.markdown("""
+            **Hybrid Drum Machine:**
+            - 8 analog drum voices
+            - 8 sample tracks
+            - 12 velocity-sensitive pads
+            - Performance macros
+            - Sample chains
+            - Kit save/load
+
+            **Workflow:**
+            1. Select pad/track
+            2. Choose analog engine or sample
+            3. Tune synth parameters
+            4. Program pattern
+            5. Use performance mode
+            """)
+
+            st.markdown("""
+            <div class='hardware-tip'>
+            <strong>🎛️ WORKFLOW TIP:</strong><br>
+            Combine analog synthesis with samples on each track.
+            Use CTRL-ALL mode to tweak multiple tracks simultaneously.
+            Performance macros let you morph between scenes in real-time.
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================================================
 # FOOTER
@@ -1102,16 +886,15 @@ with col1:
     st.markdown("[Patch Library](https://patch-library.net)")
 
 with col2:
-    st.markdown("**🧠 Learning Science**")
-    st.markdown("This tool uses:")
-    st.markdown("- Spaced repetition")
-    st.markdown("- Active recall")
-    st.markdown("- Hands-on practice")
+    st.markdown("**🧠 Learning**")
+    st.caption("Spaced repetition")
+    st.caption("Active recall")
+    st.caption("Hands-on practice")
 
 with col3:
-    st.markdown("**💡 Pro Tip**")
-    st.markdown("Practice patches in order.")
-    st.markdown("Review every 5 minutes.")
-    st.markdown("Always try on hardware.")
+    st.markdown("**⚡ Performance**")
+    st.caption("CSS knobs (fast)")
+    st.caption("Cached waveforms")
+    st.caption("Optimized rendering")
 
-st.caption("Built for laptop-beside-hardware learning • All specs verified from official manuals")
+st.caption("Built for laptop-beside-hardware learning • Optimized for performance")
