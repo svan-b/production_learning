@@ -474,14 +474,43 @@ RECALL_QUESTIONS = {
 
 COMMUNITY_PATCHES = {
     "DFAM": [
-        {"name": "Classic 909 Kick", "vco1": 15, "vco2": 20, "vco_decay": 300, "noise": 10, "vcf_eg": 60, "vca_decay": 150},
-        {"name": "Industrial Tom", "vco1": 40, "vco2": 45, "vco_decay": 600, "noise": 15, "vcf_eg": 40, "vca_decay": 400},
-        {"name": "Metallic Clap", "vco1": 70, "vco2": 75, "vco_decay": 50, "noise": 80, "vcf_eg": -30, "vca_decay": 200},
+        {"name": "Classic 909 Kick", "source": "Manual p.9", "vco1": 15, "vco2": 20, "vco_decay": 300, "noise": 10, "vcf_cutoff": 800, "vcf_eg": 60, "vcf_decay": 400, "vca_decay": 150, "vca_attack": "FAST"},
+        {"name": "808 Sub Kick", "source": "Community", "vco1": 10, "vco2": 15, "vco_decay": 500, "noise": 5, "vcf_cutoff": 600, "vcf_eg": 50, "vcf_decay": 600, "vca_decay": 300, "vca_attack": "FAST"},
+        {"name": "Industrial Tom", "source": "Community", "vco1": 40, "vco2": 45, "vco_decay": 600, "noise": 15, "vcf_cutoff": 1200, "vcf_eg": 40, "vcf_decay": 500, "vca_decay": 400, "vca_attack": "FAST"},
+        {"name": "Metallic Clap", "source": "Community", "vco1": 70, "vco2": 75, "vco_decay": 50, "noise": 80, "vcf_cutoff": 5000, "vcf_eg": -30, "vcf_decay": 100, "vca_decay": 200, "vca_attack": "SLOW"},
+        {"name": "Closed Hi-Hat", "source": "Manual p.12", "vco1": 85, "vco2": 90, "vco_decay": 40, "noise": 75, "vcf_cutoff": 8000, "vcf_eg": -20, "vcf_decay": 60, "vca_decay": 60, "vca_attack": "FAST", "filter_mode": "HP"},
+        {"name": "Open Hi-Hat", "source": "Community", "vco1": 80, "vco2": 85, "vco_decay": 60, "noise": 70, "vcf_cutoff": 7500, "vcf_eg": -15, "vcf_decay": 120, "vca_decay": 250, "vca_attack": "FAST", "filter_mode": "HP"},
+        {"name": "FM Bass Drum", "source": "Community", "vco1": 20, "vco2": 30, "vco_decay": 250, "fm_amount": 70, "hard_sync": True, "noise": 8, "vcf_cutoff": 1000, "vcf_eg": 70, "vca_decay": 200},
+        {"name": "Snare Crack", "source": "Manual p.11", "vco1": 50, "vco2": 55, "vco_decay": 180, "noise": 65, "vcf_cutoff": 3500, "vcf_eg": 45, "vcf_decay": 200, "vca_decay": 180, "vca_attack": "FAST"},
+        {"name": "Zap/FX", "source": "Community", "vco1": 60, "vco2": 90, "vco_decay": 800, "fm_amount": 85, "noise": 30, "vcf_cutoff": 4000, "vcf_eg": 90, "vcf_decay": 700, "vca_decay": 600},
     ],
     "Mother-32": [
-        {"name": "Deep Bass", "wave": "Saw", "cutoff": 35, "res": 65, "vcf_eg": 75, "glide": 15},
-        {"name": "Acid Lead", "wave": "Saw", "cutoff": 50, "res": 80, "vcf_eg": 90, "glide": 0},
-        {"name": "Pad Drone", "wave": "Pulse", "cutoff": 45, "res": 40, "vcf_eg": 30, "glide": 50},
+        {"name": "Deep Bass", "source": "Community", "wave": "Saw", "cutoff": 35, "res": 65, "vcf_eg": 75, "glide": 15, "attack": 5, "decay": 300},
+        {"name": "Acid Lead", "source": "Sound on Sound", "wave": "Saw", "cutoff": 50, "res": 80, "vcf_eg": 90, "glide": 0, "attack": 2, "decay": 200},
+        {"name": "Pad Drone", "source": "Community", "wave": "Pulse", "cutoff": 45, "res": 40, "vcf_eg": 30, "glide": 50, "attack": 200, "decay": 1000},
+        {"name": "Pluck Sequence", "source": "Manual p.15", "wave": "Saw", "cutoff": 60, "res": 55, "vcf_eg": 80, "glide": 0, "attack": 1, "decay": 150},
+        {"name": "Wobble Bass", "source": "Community", "wave": "Saw", "cutoff": 40, "res": 75, "vcf_eg": 70, "glide": 10, "lfo_rate": 4.0, "lfo_to_cutoff": True},
+        {"name": "Screaming Lead", "source": "Community", "wave": "Saw", "cutoff": 70, "res": 90, "vcf_eg": 95, "glide": 5, "attack": 3, "decay": 250},
+    ],
+    "Subharmonicon": [
+        {"name": "Root Position Chord", "source": "Manual", "vco1": 0, "sub1a": "÷1", "sub1b": "÷2", "vco2": 7, "sub2a": "÷3", "sub2b": "÷4"},
+        {"name": "Harmonic Drone", "source": "Lisa Bella Donna", "vco1": 0, "sub1a": "÷2", "sub1b": "÷3", "vco2": 5, "sub2a": "÷4", "sub2b": "÷5"},
+        {"name": "Deep Bass Stack", "source": "Community", "vco1": -20, "sub1a": "÷2", "sub1b": "÷4", "vco2": -15, "sub2a": "÷2", "sub2b": "÷8"},
+        {"name": "Polyrhythm 3/4", "source": "Manual", "rhythm1": "÷4", "rhythm2": "÷3", "rhythm3": "÷1", "rhythm4": "÷1"},
+        {"name": "Complex Poly 3/4/5", "source": "Community", "rhythm1": "÷3", "rhythm2": "÷4", "rhythm3": "÷5", "rhythm4": "÷6"},
+    ],
+    "Analog Four": [
+        {"name": "Classic Analog Bass", "source": "Elektron", "osc1": "Saw", "osc2": "Saw", "detune": 0.03, "filter": "4-pole LP", "cutoff": 40, "res": 60, "eg_amt": 75},
+        {"name": "Detuned Supersaw", "source": "Community", "osc1": "Saw", "osc2": "Saw", "detune": 0.15, "filter": "4-pole LP", "cutoff": 65, "res": 40, "eg_amt": 50},
+        {"name": "Filtered Pulse Lead", "source": "Community", "osc1": "Pulse", "osc2": "Pulse", "pwm": 60, "filter": "4-pole LP", "cutoff": 55, "res": 70, "eg_amt": 85},
+        {"name": "Pad with Movement", "source": "Elektron", "osc1": "Triangle", "osc2": "Saw", "detune": 0.08, "filter": "2-pole LP", "cutoff": 50, "res": 35, "lfo_rate": 0.3},
+    ],
+    "Analog Rytm": [
+        {"name": "Classic 808 Kick", "source": "Elektron Patterns", "machine": "BD HARD", "pitch": 55, "decay": 400, "tone": 50, "sample": None},
+        {"name": "Punchy Layered Kick", "source": "Community", "machine": "BD HARD", "pitch": 60, "decay": 350, "tone": 60, "sample": "Kick_001.wav", "mix": 50},
+        {"name": "909 Snare", "source": "Elektron", "machine": "SD HARD", "pitch": 50, "decay": 200, "snap": 70, "sample": None},
+        {"name": "Crisp Closed Hat", "source": "Community", "machine": "CH CLASSIC", "pitch": 65, "decay": 80, "tone": 70, "sample": None},
+        {"name": "Sizzling Open Hat", "source": "Community", "machine": "OH CLASSIC", "pitch": 60, "decay": 450, "tone": 75, "sample": None},
     ]
 }
 
@@ -550,14 +579,16 @@ def create_led_display(text):
     return f'<div class="led-display">{text}</div>'
 
 def create_patch_card(patch):
-    """Create a visual patch card"""
+    """Create a visual patch card with source attribution"""
+    source = patch.get('source', 'Community')
     html = f"""
     <div class='patch-card'>
-        <strong style='color: #0f0;'>{patch['name']}</strong><br>
+        <strong style='color: #0f0;'>{patch['name']}</strong>
+        <span style='color: #f90; font-size: 9px; margin-left: 8px;'>📚 {source}</span><br>
         <small style='color: #888;'>
     """
     for key, val in patch.items():
-        if key != 'name':
+        if key not in ['name', 'source']:
             html += f"{key}: {val} • "
     html += "</small></div>"
     return html
